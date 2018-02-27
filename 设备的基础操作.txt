@@ -1,0 +1,20 @@
+1、配置远程管理
+user-interface vty 0 4
+ authentication-mode password                       //配置认证模式为密码模式
+ user privilege level 15                            //配置telnet过来的权限为15
+ set authentication password cipher huawei123       //配置telnet的密码是huawei123
+========================================================================================
+2、清除Console口密码
+重启，开机后按ctrl+B，进入bootrom menu
+密码：Admin@huawei.com
+选择7，清除console密码、
+选择1，boot with default mode （选择8reboot的话前面清除无效）
+重启后提示输入密码，此为设置的新密码
+========================================================================================
+3、清除其他配置
+reset saved-configuration                   /清空配置点Y
+reboot                          N
+询问是否重启                        Y
+
+clear configuration interface g0/0/0        /清空接口配置
+========================================================================================
