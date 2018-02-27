@@ -1,8 +1,31 @@
 1、配置远程管理
+Telnet
 user-interface vty 0 4
- authentication-mode password                       //配置认证模式为密码模式
- user privilege level 15                            //配置telnet过来的权限为15
- set authentication password cipher huawei123       //配置telnet的密码是huawei123
+	authentication-mode password                       //配置认证模式为密码模式
+	user privilege level 15                            //配置telnet过来的权限为15
+	set authentication password cipher huawei123       //配置telnet的密码是huawei123
+
+AAA
+aaa                         //进入aaa模式
+	local-user qyt password cipher Huawei123          //用户名和密码
+	local-user qyt service-type telnet                //配置账号的功能是telnet
+	local-user qyt privilege level 15                 //配置账号等级(15最高)
+user-interface vty 0 4
+	authentication-mode aaa                          //允许认证方式
+	protocol inbound                                  //允许什么协议登陆设备
+	
+SSH
+aaa
+	local-user qyt password cipher %$%$(=Bu/,7mf-7$;6.Q9`DY/)c3%$%$   //配置用户名和密码
+	local-user qyt privilege level 15                                 //配置用户名的级别
+	local-user qyt service-type telnet ssh                            //配置用的类型
+rsa local-key-pair create                                          //配置加密
+stelnet server enable                                              //开启SSH的功能
+ssh user qyt authentication-type password                          //配置SSH的认证类型为password 
+user-interface vty 0 4 
+	protocol inbound ssh 
+	authentication-mode aaa                              //在VTY接口下开启3A认证
+ssh user qyt service-type stelnet                         //该命令真机上需要配置
 ========================================================================================
 2、清除Console口密码
 重启，开机后按ctrl+B，进入bootrom menu
@@ -17,4 +40,29 @@ reboot                          N
 询问是否重启                        Y
 
 clear configuration interface g0/0/0        /清空接口配置
+========================================================================================
+4、通过FTP服务器更换配置文件
+查看下次启动使用的配置文件
+<R1>display startup 
+MainBoard: 
+  Startup system software:                   null
+  Next startup system software:              null
+  Backup system software for next startup:   null
+  Startup saved-configuration file:          flash:/vrpcfg.zip
+  Next startup saved-configuration file:     flash:/vrpcfg.zip
+  Startup license file:                      null
+  Next startup license file:                 null
+  Startup patch package:                     null
+  Next startup patch package:                null
+  Startup voice-files:                       null
+  Next startup voice-files:                  null
+
+更改下次启动使用的配置文件
+	startup saved-configuration qyt.zip               //设置下次启动调用的配置文件
+
+FTP操作
+	dir                                           //显示当前目录内的文件
+	put                                           //把本地文件放入服务器，上传
+	get                                           //把服务器的文件下载到本地，下载
+	ls                                            //查看文件目录
 ========================================================================================
