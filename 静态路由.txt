@@ -1,0 +1,4 @@
+[R1] ip route-static 目标IP netmask 下一跳地址(亦可以写出接口，不过容易出问题)
+
+查看路由表
+display ip routing-table
