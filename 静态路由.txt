@@ -1,4 +1,9 @@
-[R1] ip route-static 目标IP netmask 下一跳地址(亦可以写出接口，不过容易出问题)
+静态路由配置：
+[R1] ip route-static 目标IP netmask 出接口 下一跳IP    
+（注：如果出接口为广播多路访问型接口，例如以太网接口，那么必须关联下一跳地址，如果为点到点接口，如Serial接口，则可关联出接口）
 
 查看路由表
 display ip routing-table
+======================================
+静态默认路由配置：
+[R1]ip route-static 0.0.0.0 0.0.0.0 1.1.1.2 
