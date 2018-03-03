@@ -1,0 +1,25 @@
+链路聚合有两种方式：手工配置和LACP方式
+==================================================
+1、手工配置
+[Huawei]interface Eth-Trunk 1                                   //创建链路聚合组1
+[Huawei-Eth-Trunk1]trunkport GigabitEthernet 0/0/5 to 0/0/6     //把g0/0/5、g0/0/6端口加入该组
+[Huawei-Eth-Trunk1]mode manual load-balance                     //设置链路聚合组的工作模式为手工负载均衡模式
+[Huawei-Eth-Trunk1]load-balance src-dst-mac                     //配置负载均衡的方式为源目MAC地址
+[Huawei-Eth-Trunk1]port link-type trunk
+[Huawei-Eth-Trunk1]port trunk allow-pass vlan all               //配置trunk模式并放行vlan流量
+==================================================
+2、LACP模式
+2.1二层链路聚合实现
+[Huawei]interface Eth-Trunk 10                                  //创建链路聚合组10
+[SW1-Eth-Trunk10]mode lacp-static                               //设置模式为lacp静态模式
+[Huawei-Eth-Trunk1]trunkport GigabitEthernet 0/0/5 to 0/0/7     //把g0/0/5、g0/0/6、g0/0/7端口加入该组
+[SW1-Eth-Trunk10]max active-linknumber 2                        //设置上限活动接口阈值为2（最多2条链路工作）
+[SW1]lacp priority 100                                          //通过设置系统的LACP优先级，选择主动发起端
+[SW1-GigabitEthernet0/0/6]lacp priority 100                     //通过设置端口的LACP优先级，选择活动接口和非活动接口
+[SW1-Eth-Trunk10]lacp preempt enable                            //开启抢占模式
+[SW1-Eth-Trunk10]load-balance src-dst-mac                       //设置负载均衡的方式为源目MAC地址
+
+2.2三层链路聚合实现
+[Huawei]interface Eth-Trunk 10                                 
+[SW1-Eth-Trunk10]undo portswitch
+其他配置与二层无异

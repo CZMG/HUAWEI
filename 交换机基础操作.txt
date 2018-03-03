@@ -1,0 +1,10 @@
+1、端口基本配置
+[SWA]interface GigabitEthernet 0/0/1
+[SWA-GigabitEthernet0/0/1]undo negotiation auto      //关闭该端口的自动协商功能
+[SWA-GigabitEthernet0/0/1]speed 100                  //设置端口的工作速率
+[SWA-GigabitEthernet0/0/1]duplex full                //设置端口工作模式为全双工
+[SWA-GigabitEthernet0/0/1]undo port-switch           //开启该端口三层功能
+=====================================================================
+2、设置MAC地址表老化时间（默认300秒）
+[SWA]mac-address aging-time 400
+=====================================================================

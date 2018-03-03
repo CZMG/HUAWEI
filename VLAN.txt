@@ -1,0 +1,39 @@
+1、华为交换机端口类型
+
+Access端口是交换机上用来连接用户主机的端口，它只能连接接入链路，并且只能允许唯一的VLAN ID通过本端口。
+Access端口收发数据帧的规则如下：
+如果该端口收到对端设备发送的帧是untagged（不带VLAN标签），交换机将强制加上该端口的PVID。如果该端口收到对端设备发送的帧是tagged（带VLAN标签），交换机会检查该标签内的VLAN ID。当VLAN ID与该端口的PVID相同时，接收该报文。当VLAN ID与该端口的PVID不同时，丢弃该报文。
+Access端口发送数据帧时，总是先剥离帧的Tag，然后再发送。Access端口发往对端设备的以太网帧永远是不带标签的帧。
+
+Trunk端口收发数据帧的规则如下：
+当接收到对端设备发送的不带Tag的数据帧时，会添加该端口的PVID，如果PVID在允许通过的VLAN ID列表中，则接收该报文，否则丢弃该报文。当接收到对端设备发送的带Tag的数据帧时，检查VLAN ID是否在允许通过的VLAN ID列表中。如果VLAN ID在接口允许通过的VLAN ID列表中，则接收该报文。否则丢弃该报文。
+端口发送数据帧时，当VLAN ID与端口的PVID相同，且是该端口允许通过的VLAN ID时，去掉Tag，发送该报文。当VLAN ID与端口的PVID不同，且是该端口允许通过的VLAN ID时，保持原有Tag，发送该报文。
+
+Hybrid端口收发数据帧的规则如下：
+当接收到对端设备发送的不带Tag的数据帧时，会添加该端口的PVID，如果PVID在允许通过的VLAN ID列表中，则接收该报文，否则丢弃该报文。当接收到对端设备发送的带Tag的数据帧时，检查VLAN ID是否在允许通过的VLAN ID列表中。如果VLAN ID在接口允许通过的VLAN ID列表中，则接收该报文，否则丢弃该报文。
+Hybrid端口发送数据帧时，将检查该接口是否允许该VLAN数据帧通过。如果允许通过，则可以通过命令配置发送时是否携带Tag。
+=======================================================================================
+2、VLAN配置
+创建VLAN
+[Huawei]vlan 10
+[Huawei-vlan10]
+
+VLAN划分
+[Huawei-GigabitEthernet0/0/3]port link-type access 　　//将接口修改为access类型
+[Huawei-GigabitEthernet0/0/3]port default vlan 10　　　//将接口加入ＶＬＡＮ　10
+[Huawei-GigabitEthernet0/0/1]port link-type trunk      //将接口修改为trunk类型
+[Huawei-GigabitEthernet0/0/1]port trunk allow-pass vlan   10       //允许哪个VLAN通过
+
+[SWA-GigabitEthernet0/0/3]port link-type  hybrid       
+[SWA-GigabitEthernet0/0/1]port hybrid tagged vlan 2 3 100--VLAN的数据帧以Tagged方式通过该端
+[SWA-GigabitEthernet0/0/2]port hybrid pvid vlan 2--交换机连接主机A的端口的PVID是2
+[SWA-GigabitEthernet0/0/2]port hybrid untagged vlan 2 100--配置VLAN2和VLAN100的数据帧在通过该端口时都不携带
+[SWA-GigabitEthernet0/0/3]port hybrid pvid vlan 3--交换机连接主机A的端口的PVID是3
+[SWA-GigabitEthernet0/0/3]port hybrid untagged vlan 3 100--配置VLAN3和VLAN100的数据帧在通过该端口时都不携带
+
+Voice VLAN 配置
+[SWB]vlan 2
+[SWB-GigabitEthernet0/0/1]voice-vlan 2 enable
+[SWB-GigabitEthernet0/0/1]voice-vlan mode auto
+[SWB-GigabitEthernet0/0/1]quit
+[SWB]voice-vlan mac-address 0011-2200-0000 mask ffff-ff00-0000

@@ -75,9 +75,18 @@ sysname R1
 配置在用户登录后显示的标题信息（输入密码确认后）
 [huawei]header shell information "Please don't reboot the device!"
 ========================================================================================
-7、配置用户界面命令
+7、配置console口参数
 [Huawei]user-interface console 0
-[huawei]idle-timeout 1 30                      \\设置超时时间
+[Huawei-ui-console0]authentication-mode password
+[Huawei-ui-console0]set authentication password cipher Huawei123   \\设置登录密码
+[Huawei-ui-console0]idle-timeout 1 30                      \\设置超时时间
 [Huawei-ui-console0]screen-length 30           \\设置指定终端屏幕的临时显示行数
 [huawei]history-command max-size 20            \\设置历史命令缓冲区的大小
 ========================================================================================
+8、修改系统时间
+<Huawei>clock timezone Local add 08:00:00           //设置时区
+<Huawei>clock datetime 12:00:00 2018-03-01          //设置时间
+<Huawei>display clock                               //查看时间
+========================================================================================
+9、查看系统信息
+<Huawei>display version
