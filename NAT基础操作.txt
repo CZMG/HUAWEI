@@ -1,0 +1,18 @@
+1、静态NAT实现
+[R1]ip route-static 0.0.0.0 0.0.0.0 GigabitEthernet 0/0/0 192.168.1.2    //配置默认路由
+[R1]inter g0/0/0                          
+[R1-GigabitEthernet0/0/0]nat static global 192.168.1.10 inside 10.1.1.1  //将内部地址10.1.1.1映射到外部192.168.1.10
+===================================================================
+2、NAT服务器（服务器对外提供服务时使用）
+[R1]ip route-static 0.0.0.0 0.0.0.0 GigabitEthernet 0/0/0 192.168.1.2    //配置默认路由
+[R1]inter g0/0/0 
+[R1-GigabitEthernet0/0/0]nat server protocol tcp  global 192.168.1.20 4001 inside 20.1.1.1 //将内部地址20.1.1.1转换成192.168.1.20的4001端口发出，且协议为tcp（不能直接使用接口的IP来做转换）
+[R1-GigabitEthernet0/0/0]nat server protocol  tcp  global  current-interface  5000 inside 10.1.1.1 //使用当前的端口来做转换
+
+查看
+[R1]dis nat server
+===================================================================
+3、Easy NAT（PAT）(将内网的IP转换为出接口的公网IP)
+[R1]acl 2001                                                         //定义ACL2001
+[R1-acl-basic-2001]rule 1 permit  source 10.1.1.0 0.0.0.255          //添加规则，允许匹配10.1.1.0/24网段（通配符掩码）
+[R1-GigabitEthernet0/0/0]nat outbound 2001                           //在接口下应用

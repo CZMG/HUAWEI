@@ -1,0 +1,26 @@
+1、设置死亡间隔和Hello间隔
+[R1]inter g0/0/0
+[R1-GigabitEthernet0/0/0]ospf timer  dead 45         //设置死亡间隔时间为45秒
+[R1-GigabitEthernet0/0/0]ospf timer hello 15         //设置hello间隔时间为15秒
+===================================================================================
+2、单区域OSPF配置
+[Huawei]inter g0/0/0
+[Huawei-GigabitEthernet0/0/0]ip add 10.1.1.2 24      //端口配置IP
+[Huawei]router id 2.2.2.2                            //设置路由器ID（若不指定路由器ID，OSPF会自动使用Loopback中IP最大的地址作为路由器ID；若没有Loopback接口，则使用物理接口中IP地址最大的。）
+[R2]ospf                                             //创建OSPF进程
+[R2-ospf-1]area 0                                    //创建区域0
+[R2-ospf-1-area-0.0.0.0]network  10.1.1.0 0.0.0.255  //声明直连网段
+
+查看
+[R2]dis ospf peer                            //查看OSPF邻居信息
+[R2]dis ospf routing                         //查看OSPF路由表
+[R2]dis ip routing-table protocol ospf
+===================================================================================
+3、控制DR和BDR选举
+[R2]inter g0/0/0
+[R2-GigabitEthernet0/0/0]ospf dr-priority  10     //修改DR接口的优先级为10
+<R1>reset ospf process
+<R2>reset ospf process
+===================================================================================
+4、多区域OSPF配置
+在每个区域中添加该区域的网段

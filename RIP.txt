@@ -1,0 +1,24 @@
+RIP v1
+配置
+[R1]rip
+[R1-rip-1]network 1.0.0.0
+查看
+[R1-rip-1]dis rip 1 database 
+[R1-rip-1]dis rip 1 interface 
+[R1-rip-1]dis rip 1 neighbor
+[R1-rip-1]dis rip 1 route
+=============================================================
+RIP v2
+设置版本2
+[R1]rip
+[R1-rip-1]version 2          //设置版本2
+静默端口
+[R1-rip-1]peer 1.1.1.3                                   //指定对端IP
+[R1-rip-1]silent-interface GigabitEthernet 0/0/1         //指定g0/0/1为静默端口
+修改度量值
+[R1-GigabitEthernet0/0/0]rip metricin 10                 //进入该端口的所有路由度量值加10
+[R1-GigabitEthernet0/0/0]rip metricout 10                //出该端口的所有路由度量值加10
+配置RIPv2认证
+[R1-GigabitEthernet0/0/0]rip authentication-mode simple cipher test
+开启自动汇总
+[R1-rip-1]summary always
