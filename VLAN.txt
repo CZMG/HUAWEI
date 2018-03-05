@@ -20,9 +20,10 @@ Hybrid端口发送数据帧时，将检查该接口是否允许该VLAN数据帧�
 
 VLAN划分
 [Huawei-GigabitEthernet0/0/3]port link-type access 　　//将接口修改为access类型
-[Huawei-GigabitEthernet0/0/3]port default vlan 10　　　//将接口加入ＶＬＡＮ　10
+[Huawei-GigabitEthernet0/0/3]port default vlan 10　　　//将接口加入VLAN10
 [Huawei-GigabitEthernet0/0/1]port link-type trunk      //将接口修改为trunk类型
 [Huawei-GigabitEthernet0/0/1]port trunk allow-pass vlan   10       //允许哪个VLAN通过
+[Huawei-GigabitEthernet0/0/1]port trunk pvid vlan 10   //将接口的PVID修改为10
 
 [SWA-GigabitEthernet0/0/3]port link-type  hybrid       
 [SWA-GigabitEthernet0/0/1]port hybrid tagged vlan 2 3 100--VLAN的数据帧以Tagged方式通过该端

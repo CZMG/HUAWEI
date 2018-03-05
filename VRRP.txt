@@ -1,0 +1,10 @@
+VRRP(虚拟路由器冗余协议，公有标准)（对应于思科的HSRP）
+第一跳网关技术，即网关技术
+三层技术
+[SW1]inter Vlanif 10
+[SW1-Vlanif10]ip add 10.1.1.101 24                                  //给vlan 10配置IP
+[SW1-Vlanif10]vrrp  vrid 10 virtual-ip 10.1.1.254                   //给vlan10配置VRRP虚拟地址为10.1.1.254
+[SW1-Vlanif20]vrrp vrid 20 virtual-ip 20.1.1.254                    //给vlan20配置VRRP虚拟地址为20.1.1.254
+
+查看
+[SW1] dis vrrp brief
