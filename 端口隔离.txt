@@ -1,0 +1,14 @@
+端口隔离
+配置SW1使得同一vlan的10和11口不能通信：
+port- - isolate mode all                                //全局使能隔离模式
+interface GigabitEthernet0/0/10 （ 11 口）
+	port link- - type access
+	port default n vlan 3 3
+	port- - isolate enable group 1   1                  //属于相同组不能互通，被隔离和隔离的端口可以互通，不同组可以互通
+	
+端口隔离配置
+[Quidway] port-isolate mode all                                // 配置端口隔离模式
+[Quidway] interface gigabitethernet2/0/1
+[Quidway-GigabitEthernet2/0/1]port-isolate enable              //在端口GE2/0/1使能端口隔离功能
+Quidway-GigabitEthernet2/0/1]interface  gigabitethernet2/0/2
+[Quidway-GigabitEthernet2/0/2]port-isolate enable              //在端口GE2/0/2使能端口隔离功能
