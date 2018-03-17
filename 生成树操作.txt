@@ -1,3 +1,6 @@
+========================================================
+STP
+========================================================
 选举步骤：
 
 选举根桥
@@ -34,4 +37,25 @@
 6、配置边缘端口（边缘端口连接终端）
 [SWA]interface g0/0/1
 [SWA-GigabitEthernet0/0/1]stp edged-port enable       //设置G0/0/1端口为边缘端口
+========================================================
+RSTP
+========================================================
+1、修改交换机生成树模式
+华为所有7系列的交换机默认生成树模式是MSTP（多生成树协议）。
+[SWA]stp mode rstp
+========================================================
+2、配置 SwitchA 的端口路径开销计算方法为华为计算方法。
+[SwitchA] stp pathcost-standard legacy
+========================================================
+3、将与 PC 机相连的端口配置为边缘端口并配置 BPDU 过滤
+[SwitchB] interface gigabitethernet 0/0/2
+[SwitchB-GigabitEthernet0/0/2] stp edged-port enable
+[SwitchB-GigabitEthernet0/0/2] stp bpdu-filter enable
+========================================================
+4、设备全局使能 RSTP
+[SwitchA] stp enable
+========================================================
+5、在 SwitchA 端口 GigabitEthernet0/0/1 上配置根保护功能
+[SwitchA] interface gigabitethernet 0/0/1
+[SwitchA-GigabitEthernet0/0/1] stp root-protection
 ========================================================
