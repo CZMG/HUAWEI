@@ -34,10 +34,6 @@ STP
 [SWA]interface g0/0/1
 [SWA-GigabitEthernet0/0/1]stp cost 30000              //设置该端口的STP开销为30000
 ========================================================
-6、配置边缘端口（边缘端口连接终端）
-[SWA]interface g0/0/1
-[SWA-GigabitEthernet0/0/1]stp edged-port enable       //设置G0/0/1端口为边缘端口
-========================================================
 RSTP
 ========================================================
 1、修改交换机生成树模式
@@ -47,15 +43,23 @@ RSTP
 2、配置 SwitchA 的端口路径开销计算方法为华为计算方法。
 [SwitchA] stp pathcost-standard legacy
 ========================================================
-3、将与 PC 机相连的端口配置为边缘端口并配置 BPDU 过滤
+3、将与 PC 机相连的端口配置为边缘端口并配置 BPDU 过滤（该接口不会发送BPDU）
 [SwitchB] interface gigabitethernet 0/0/2
 [SwitchB-GigabitEthernet0/0/2] stp edged-port enable
-[SwitchB-GigabitEthernet0/0/2] stp bpdu-filter enable
+[SwitchB-GigabitEthernet0/0/2] stp bpdu-filter enable  （配置BPDU过滤的风险：有可能会引起环路，发送端的BPDU被过滤，对方原本是AP，也将发送BPDU，引起环路。）
 ========================================================
 4、设备全局使能 RSTP
 [SwitchA] stp enable
 ========================================================
-5、在 SwitchA 端口 GigabitEthernet0/0/1 上配置根保护功能
+5、在端口上配置根保护功能
 [SwitchA] interface gigabitethernet 0/0/1
 [SwitchA-GigabitEthernet0/0/1] stp root-protection
 ========================================================
+6、配置边缘端口的保护
+[SWA]stp bpdu-protection
+注：若因边缘端口保护，端口收到BPDU后error-down，需要管理员手动关闭再开启接口。等同Cisco的error-disabled。（逻辑down，并非物理down）
+========================================================
+7、配置根端口的环路保护
+[SWB] interface Ethernet 1/0/13
+[SWB-Ethernet0/0/13] stp loop-protection
+注：在启动了环路保护功能后，如果根端口或Alternate端口长时间收不到来自上游的BPDU时，则向网管发出通知信息（如果是根端口则进入Discarding状态）。而阻塞端口则会一直保持在阻塞状态，不转发报文，从而不会在网络中形成环路。直到根端口收到BPDU，端口状态才恢复正常为Forwarding状态。
