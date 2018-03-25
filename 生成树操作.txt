@@ -63,3 +63,49 @@ RSTP
 [SWB] interface Ethernet 1/0/13
 [SWB-Ethernet0/0/13] stp loop-protection
 注：在启动了环路保护功能后，如果根端口或Alternate端口长时间收不到来自上游的BPDU时，则向网管发出通知信息（如果是根端口则进入Discarding状态）。而阻塞端口则会一直保持在阻塞状态，不转发报文，从而不会在网络中形成环路。直到根端口收到BPDU，端口状态才恢复正常为Forwarding状态。
+========================================================
+MSTP
+========================================================
+1、配置 SwitchA 的 MST 域
+<HUAWEI> system-view
+[HUAWEI] sysname SwitchA
+[SwitchA] stp region-configuration                            //进入域配置                     
+[SwitchA-mst-region] region-name RG1                          //域名
+[SwitchA-mst-region] instance 1 vlan 2 to 10                  //实例绑定vlan
+[SwitchA-mst-region] instance 2 vlan 11 to 20
+[SwitchA-mst-region] active region-configuration              //激活区域配置，否则上面配置不生效
+[SwitchA-mst-region] quit
+========================================================
+2、配置 SwitchA 为 MSTI1 的根桥，配置 SwitchB 为 MSTI1 的备份根桥。
+[SwitchA] stp instance 1 root primary
+[SwitchB] stp instance 1 root secondary
+========================================================
+3、 配置 SwitchC 的端口路径开销计算方法为华为计算方法，将端口 GE0/0/2 在实例
+MSTI2 中的路径开销值配置为 20000。
+[SwitchC] stp pathcost-standard legacy
+[SwitchC] interface gigabitethernet 0/0/2
+[SwitchC-GigabitEthernet0/0/2] stp instance 2 cost 20000
+[SwitchC-GigabitEthernet0/0/2] quit
+========================================================
+4、配置 SwitchC 端口 GE0/0/1 的 STP 去使能。
+[SwitchC] interface gigabitethernet 0/0/1
+[SwitchC-GigabitEthernet0/0/1] stp disable
+[SwitchC-GigabitEthernet0/0/1] quit
+========================================================
+5、在 SwitchA 端口 GE0/0/1 上启动根保护。
+[SwitchA] interface gigabitethernet 0/0/1
+[SwitchA-GigabitEthernet0/0/1] stp root-protection
+[SwitchA-GigabitEthernet0/0/1] quit
+========================================================
+6、在 SwitchA 上启动 MSTP。
+[SwitchA] stp enable
+========================================================
+7、在 SwitchA 上创建 VLAN2～20。
+[SwitchA] vlan batch 2 to 20
+========================================================
+8、将 SwitchA 端口 GE0/0/1 加入 VLAN。
+[SwitchA] interface gigabitethernet 0/0/1
+[SwitchA-GigabitEthernet0/0/1] port link-type trunk
+[SwitchA-GigabitEthernet0/0/1] port trunk allow-pass vlan 2 to 20
+[SwitchA-GigabitEthernet0/0/1] quit
+========================================================

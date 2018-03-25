@@ -1,0 +1,36 @@
+========================================================
+DHCP
+========================================================
+1、接口模式
+[R1]dhcp enable 
+[R1]inter g0/0/0.10
+[R1-GigabitEthernet0/0/0.10]dot1q termination vid 20
+[R1-GigabitEthernet0/0/0.10]ip address 10.1.2.254 255.255.255.0 
+[R1-GigabitEthernet0/0/0.10]arp broadcast enable
+[R1-GigabitEthernet0/0/0.10]dhcp select interface     //在该接口启用DHCP的功能，启用后将接口地址所属的网段为DHCP的地址池，该地址做为网关。
+[R1-GigabitEthernet0/0/0.10]dhcp server static-bind ip 10.1.1.100 mac-address 54
+89-982E-5EDE               //将MAC地址与要分配给它的IP地址绑定。
+[R1-GigabitEthernet0/0/0.10]dhcp  server dns-list  8.8.8.8 114.114.114.114     //绑定DNS服务器地址
+========================================================
+2、清空DHCP地址池地址，接口下的DHCP地址池的名称为该接口的名称
+<R1>reset ip pool interface GigabitEthernet0/0/0.10 10.1.1.100
+========================================================
+3、全局模式
+[R1]ip pool A
+[R1-ip-pool-A]gateway-list 10.1.1.254 
+[R1-ip-pool-A]network 10.1.1.0 mask 255.255.255.0 
+[R1-ip-pool-A]excluded-ip-address 10.1.1.1 10.1.1.100 
+[R1-ip-pool-A]static-bind ip-address 10.1.1.111 mac-address 5489-982e-5ede 
+[R1-ip-pool-A]lease day 4 hour 4 minute 4 
+[R1-ip-pool-A]dns-list 1.1.1.1 
+[R1]inter g0/0/0.10
+[R1-GigabitEthernet0/0/0.10]dhcp select global
+[R1]dhcp enable
+========================================================
+4、DHCP代理
+DHCP服务器配置如全局配置。
+边缘路由器配置：
+[R1]inter g0/0/0.10
+[R1-GigabitEthernet0/0/0.10]dhcp select relay
+[R1-GigabitEthernet0/0/0.10]dhcp relay server-ip 2.2.2.2      //指定DHCP服务器的IP
+========================================================
