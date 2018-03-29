@@ -7,7 +7,7 @@ DHCP
 [R1-GigabitEthernet0/0/0.10]dot1q termination vid 20
 [R1-GigabitEthernet0/0/0.10]ip address 10.1.2.254 255.255.255.0 
 [R1-GigabitEthernet0/0/0.10]arp broadcast enable
-[R1-GigabitEthernet0/0/0.10]dhcp select interface     //在该接口启用DHCP的功能，启用后将接口地址所属的网段为DHCP的地址池，该地址做为网关。
+[R1-GigabitEthernet0/0/0.10]dhcp select interface     //在该接口启用DHCP的功能，启用后将接口地址所属的网段为DHCP的地址池，该地址做为网关。接口地址池优先于全局地址池分配地址。
 [R1-GigabitEthernet0/0/0.10]dhcp server static-bind ip 10.1.1.100 mac-address 54
 89-982E-5EDE               //将MAC地址与要分配给它的IP地址绑定。
 [R1-GigabitEthernet0/0/0.10]dhcp  server dns-list  8.8.8.8 114.114.114.114     //绑定DNS服务器地址
@@ -27,10 +27,85 @@ DHCP
 [R1-GigabitEthernet0/0/0.10]dhcp select global
 [R1]dhcp enable
 ========================================================
-4、DHCP代理
+4、DHCP中继
 DHCP服务器配置如全局配置。
 边缘路由器配置：
 [R1]inter g0/0/0.10
 [R1-GigabitEthernet0/0/0.10]dhcp select relay
 [R1-GigabitEthernet0/0/0.10]dhcp relay server-ip 2.2.2.2      //指定DHCP服务器的IP
 ========================================================
+5、DHCP组
+创建一个名为dhcp-srv1的DHCP服务器组。
+<HUAWEI>system-view
+[HUAWEI]dhcp server group dhcp-srv1
+[HUAWEI-dhcp-server-group-dhcp-srv1]dhcp-server 10.1.1.1
+[HUAWEI-dhcp-server-group-dhcp-srv1]dhcp-server 192.168.1.1        //将dhcp服务器的地址加入组
+[HUAWEI-dhcp-server-group-dhcp-srv1]quit
+[HUAWEI]inter GigabitEthernet0/0/0
+[HUAWEI-GigabitEthernet0/0/0]dhcp select relay
+[HUAWEI-GigabitEthernet0/0/0]dhcp relay server-select dhcp-srv1    //接口下调用dhcp组
+//注：全局最多可以配置32个DHCP服务器组。每个DHCP服务器组下最多可以配置20个DHCP服务器。
+========================================================
+DHCP Snooping
+========================================================
+1. 使能 DHCP Snooping 功能。
+# 使能全局 DHCP Snooping 功能并配置设备仅处理 DHCPv4 报文。
+<HUAWEI> system-view
+[HUAWEI] sysname SwitchC
+[SwitchC] dhcp enable
+[SwitchC] dhcp snooping enable ipv4
+# 使能用户侧接口的 DHCP Snooping 功能。以 GE0/0/1 接口为例，GE0/0/2 的配置相同，此
+处省略。
+[SwitchC] interface gigabitethernet 0/0/1
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping enable
+[SwitchC-GigabitEthernet0/0/1] quit
+2. 配置接口的信任状态：将连接 DHCP Server 的接口状态配置为“Trusted”。
+[SwitchC] interface gigabitethernet 0/0/3
+[SwitchC-GigabitEthernet0/0/3] dhcp snooping trusted
+[SwitchC-GigabitEthernet0/0/3] quit
+3. 使能 ARP 与 DHCP Snooping 的联动功能。
+[SwitchC] arp dhcp-snooping-detect enable
+4. 使能根据 DHCP Snooping 绑定表生成接口的静态 MAC 表项功能。
+# 在用户侧接口进行配置。以 GE0/0/1 接口为例，GE0/0/2 的配置相同，此处省略。
+[SwitchC] interface gigabitethernet 0/0/1
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping sticky-mac
+[SwitchC-GigabitEthernet0/0/1] quit
+5. 使能对 DHCP 报文进行绑定表匹配检查的功能。
+# 在用户侧接口进行配置。以 GE0/0/1 接口为例，GE0/0/2 的配置相同，此处省略。
+[SwitchC] interface gigabitethernet 0/0/1
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping check dhcp-request enable
+[SwitchC-GigabitEthernet0/0/1] quit
+6. 配置 DHCP 报文上送 DHCP 报文处理单元的最大允许速率为 90pps。
+[SwitchC] dhcp snooping check dhcp-rate enable
+[SwitchC] dhcp snooping check dhcp-rate 90
+7. 使能检测 DHCP Request 报文中 GIADDR 字段是否非零的功能。
+# 在用户侧接口进行配置。以 GE0/0/1 接口为例，GE0/0/2 的配置相同，此处省略。
+[SwitchC] interface gigabitethernet 0/0/1
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping check dhcp-giaddr enable
+[SwitchC-GigabitEthernet0/0/1] quit
+8. 配置接口允许接入的最大用户数并使能对 CHADDR 字段检查功能。
+# 在用户侧接口进行配置。以 GE0/0/1 接口为例，GE0/0/2 的配置相同，此处省略。
+[SwitchC] interface gigabitethernet 0/0/1
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping max-user-number 20
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping check dhcp-chaddr enable
+[SwitchC-GigabitEthernet0/0/1] quit
+9. 配置丢弃报文告警和报文限速告警功能。
+# 使能丢弃报文告警功能，并配置丢弃报文告警阈值。以 GE0/0/1 接口为例，GE0/0/2 的配
+置相同，此处省略。
+[SwitchC] interface gigabitethernet 0/0/1
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping alarm dhcp-chaddr enable
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping alarm dhcp-request enable
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping alarm dhcp-reply enable
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping alarm dhcp-chaddr threshold 120
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping alarm dhcp-request threshold 120
+[SwitchC-GigabitEthernet0/0/1] dhcp snooping alarm dhcp-reply threshold 120
+[SwitchC-GigabitEthernet0/0/1] quit
+# 使能报文限速告警功能，并配置报文限速告警阈值。
+[SwitchC] dhcp snooping alarm dhcp-rate enable
+[SwitchC] dhcp snooping alarm dhcp-rate threshold 500
+10.开启DAI检查
+[SW2-GigabitEthernet0/0/3]arp anti-attack check user-bind enable
+[SW2-GigabitEthernet0/0/3]arp anti-attack check user-bind alarm enable
+11、查看配置
+[SwitchC] display dhcp snooping configuration
+[SwitchC] display dhcp snooping interface gigabitethernet 0/0/1
