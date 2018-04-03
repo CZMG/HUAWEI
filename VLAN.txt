@@ -68,7 +68,7 @@ VLAN Mapping 也叫做VLAN translation，可以实现在用户VLAN ID（私有VL
 [Quidway-GigabitEthernet2/0/1]port link-type trunk                           // 配置接口的类型
 [Quidway-GigabitEthernet2/0/1]port trunk allow-pass vlan 100                 // 配置接口允许通过的 VLAN ，为 mapping 后的 VLAN
 [Quidway-GigabitEthernet2/0/1]qinq vlan-translation enable                   // 使能接口VLAN 转换功能
-[Quidway-GigabitEthernet2/0/1]port vlan-mapping vlan 1 to 20 map-vlan 100    // 配置接口2/0/1 上VLAN 1~20 的报文mapping 成VLAN100
+[Quidway-GigabitEthernet2/0/1]port vlan-mapping vlan 1 to 20 map-vlan 100    // 配置接口2/0/1 上VLAN 1~20 的报文mapping 成VLAN100(出运营商交换机的时候所有帧打上最低ID的vlan标签，如vlan1，其他vlan内设备无法通信)
 
 公网交换机内接口的配置
 interface GigabitEthernet0/0/1

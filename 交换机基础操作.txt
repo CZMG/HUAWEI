@@ -8,3 +8,5 @@
 2、设置MAC地址表老化时间（默认300秒）
 [SWA]mac-address aging-time 400
 =====================================================================
+3、关闭log显示
+<Huawei>undo terminal  logging

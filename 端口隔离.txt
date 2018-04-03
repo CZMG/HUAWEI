@@ -5,7 +5,9 @@ interface GigabitEthernet0/0/10 （ 11 口）
 	port link- - type access
 	port default n vlan 3 3
 	port- - isolate enable group 1   1                  //属于相同组不能互通，被隔离和隔离的端口可以互通，不同组可以互通
-	
+
+port-isolate mode all         //在同一个组中的端口不能进行2、3层互通
+port-isolate mode l2          //在同一个组中的端口不能进行2层互通，可以进行3层互通  
 端口隔离配置
 [Quidway] port-isolate mode all                                // 配置端口隔离模式
 [Quidway] interface gigabitethernet2/0/1
