@@ -1,0 +1,19 @@
+端口安全
+======================================================================
+1、说明
+接口使能端口安全功能时，接口上之前学习到的动态MAC地址表项将被删除，之后学习到的MAC地址将变为安全动态MAC地址。 
+接口使能Sticky MAC功能时，接口上的安全动态MAC地址表项将转化为Sticky MAC地址，之后学习到的MAC地址也变为Sticky MAC地址。 
+接口去使能端口安全功能时，接口上的安全动态MAC地址将被删除，重新学习动态MAC地址。 
+接口去使能Sticky MAC功能时，接口上的Sticky MAC地址会转换为安全动态MAC地址。
+======================================================================
+2、配置
+执行命令interface interface-type interface-number，进入接口视图。 
+执行命令port-security enable，使能端口安全功能。 
+	缺省情况下，未使能端口安全功能。
+执行命令port-security mac-address sticky，使能接口Sticky MAC功能（绑定MAC地址）。 
+	缺省情况下，接口未使能Sticky MAC功能。
+执行命令port-security max-mac-num max-number，配置接口Sticky MAC学习限制数量。 
+	使能接口Sticky MAC功能后，缺省情况下，接口学习的MAC地址限制数量为1。
+（可选）执行命令port-security protect-action { protect | restrict | shutdown }，配置端口安全保护动作。 
+	缺省情况下，端口安全保护动作为restrict。
+（可选）执行命令port-security mac-address sticky mac-address vlan vlan-id，手动配置一条sticky-mac表项。 

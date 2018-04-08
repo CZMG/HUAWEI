@@ -1,0 +1,22 @@
+QinQ
+=====================================================
+1、基于端口的QinQ（基本QinQ，对进入二层 QinQ 接口的所有帧都加上相同的外层 Tag，即多对一）
+运营商交换机：
+[SW5]vlan 100
+[SW5]inter g0/0/2                                       //与接入层交换机相连的端口配置
+[SW5-GigabitEthernet0/0/2]port link-type dot1q-tunnel
+[SW5-GigabitEthernet0/0/2]port default vlan 100
+[SW5]inter g0/0/3
+[SW5-GigabitEthernet0/0/3]port trunk allow-pass vlan 100 //运营商内部交换机之间使用trunk相连
+=====================================================
+2、灵活的QinQ（对进入二层 QinQ 接口的帧，可以根据不同的内层 Tag 而加上不同的外层 Tag，
+对于用户 VLAN 的划分更加细致，即一对一）
+运营商交换机：
+[SW5]vlan 100 200 
+[SW5]inter g0/0/2                                             //与接入层交换机相连的端口配置
+[SW5-GigabitEthernet0/0/2]qinq vlan-translation enable
+[SW5-GigabitEthernet0/0/2]port hybrid untagged vlan 100 200
+[SW5-GigabitEthernet0/0/2]port vlan-stacking vlan 10 stack-vlan 100
+[SW5-GigabitEthernet0/0/2]port vlan-stacking vlan 20 stack-vlan 200
+[SW5]inter g0/0/3
+[SW5-GigabitEthernet0/0/3]port trunk allow-pass vlan 100 200  //运营商内部交换机之间使用trunk相连

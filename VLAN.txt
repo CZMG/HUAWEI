@@ -60,7 +60,7 @@ Mux VLAN 配置
 [Quidway-GigabitEthernet1/0/3]port mux-vlan enable
 [Quidway-GigabitEthernet1/0/4]port mux-vlan enable    //使能端口下的MUX-VLAN功能
 =======================================================================================
-VLAN Mapping
+VLAN Mapping（替换标签）
 VLAN Mapping 也叫做VLAN translation，可以实现在用户VLAN ID（私有VLAN）和运营商VLAN ID(业务VLAN,也可以说是公有VLAN)之间相互转换的一个功能。
 
 公网交换机与本地交换机间的接口配置：
