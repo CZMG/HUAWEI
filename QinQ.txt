@@ -20,3 +20,5 @@ QinQ
 [SW5-GigabitEthernet0/0/2]port vlan-stacking vlan 20 stack-vlan 200
 [SW5]inter g0/0/3
 [SW5-GigabitEthernet0/0/3]port trunk allow-pass vlan 100 200  //运营商内部交换机之间使用trunk相连
+=====================================================
+3、基于流的QinQ
