@@ -139,6 +139,35 @@ LS Age：
 LS Age数值越小表示此LSA越新。
 如果路由器希望从网络中删除一条自己此前生成的LSA，则重新生成该条LSA的一个实例，将LS Age设置为Max Age即可。
 如果路由器收到一条LS Age设置为Max Age的LSA，则从LSDB中删除此LSA（如果LSDB中存在此LSA）。
+
+开销计算：
+缺省情况下，OSPF的带宽参考值为100Mbit/s。根据公式100000000/带宽，Ethernet（100Mbit/s）接口开销的缺省值是1。
+根据公式100000000/带宽，可计算各种接口开销的缺省值，如下：56kbit/s串口，开销的缺省值是1785。
+	64kbit/s串口，开销的缺省值是1562。
+	E1（2.048Mbit/s），开销的缺省值是48(串口)。
+	Ethernet（100Mbit/s），开销的缺省值是1
+
+网段类型：
+Stub网段：
+Stub网段表示该网段只有数据入口，例如一个Loopback接口就是一个Stub网段。
+Cost表示从一个端点到另一个端点的开销，该参数可以在OSPF接口上配置，表示数据离开该接口（出接口）的开销。
+
+Transit网段：
+Transit网段有能力转发既不是本网段产生的，也不以本网段做为目的地的数据。
+有至少两台路由器的广播型网段或NBMA网段就是一种Transit网段。
+从路由器到所连Transit网段的开销值就是连接到这个网段的接口所配置的开销值。
+从一个Transit网段到连接到这个网段的路由器的开销为0。
+
+点到点网段：
+LSDB描述两接口处于同一网段的点到点网段的规则如下：
+	两台路由器经由两条有向线段直接相连，每个方向一条。
+	连接两个接口的网段被表示成Stub网段。
+	两个路由器同时通告Stub连接到该PPP网段。
+LSDB描述两接口处于不同网段的点到点网段的规则如下：
+	两台路由器经由两条有向线段直接相连，每个方向一条。
+	两个接口的网段被表示成Stub网段。
+	每个路由器通告一个Stub连接到该路由器所连的网段。
+
 ===================================================================================
 二、邻居关系的过程和端口状态的过程
 邻居状态机：
@@ -199,9 +228,60 @@ BDR是广播型网段或者NBMA网段上的备份指定路由器，用于和DR�
 （这种选举机制的目的是为了保持邻接关系的稳定，减小拓扑结构的改变对邻接关系的影响。）
 ===================================================================================
 四、五类LSA详解
+1、Router-LSA
+每台OSPF路由器只使用一条Router-LSA描述属于一个区域的本地活动链接状态，一条Router-LSA可以描述多条链接，每条链接由Link ID，Data，Type和Metric描述。
+
+Router-LSA各字段:
+Type：链接类型（并非OSPF所支持的网络类型），Router-LSA描述的链接类型共有四种：
+	Point-to-Point：描述一个从本路由器到邻居路由器之间的点到点链接。
+	TransNet：描述一个从本路由器到一个Transit网段（例如广播型网段或者NBMA网段）的链接。
+	StubNet：描述一个从本路由器到一个Stub网段（例如Loopback接口）的链接。
+	Virtual：表示这是一个从本路由器到虚连接对端ABR的链接。
+Link ID：此链接的对端标识，不同链接类型的Link ID表示的意义也不同。
+Data：用于描述此链接的附加信息，不同的链接类型所描述的信息也不同。
+	Type               Link ID                       Data
+	Point-to-point     邻居的Router ID               该网段上本地接口的IP地址
+	TransNet           DR的接口IP地址                该网段上本地接口的IP地址
+	StubNet            该Stub网段的IP网络地址        该Stub网段的网络掩码
+	Virtual            虚连接邻居的Router ID         去往该虚连接邻居的本地接口的IP地址
+
+注：在描述广播型或NBMA型接口的Router-LSA中：
+	如果接口状态是Waiting，或者该网段上只有一个运行OSPF的路由器，或者该网段上没有DR，则通告一个通往该网段的Stub链接，Link ID设置为该网段的IP网络号，Link Data设置为该网段的网络掩码；
+其他情况下，通告一个通往该网段的Transit连接，Link ID设置为DR的接口IP地址，Link Data设置为本地接口的IP地址。
+	连接的开销值为接口的开销。
+
+	
+2、Network-LSA
+用于广播型网段或者NBMA网段的通告。
+
+Network-LSA各字段：
+Link State ID:  DR的接口IP地址。
+Net mask:       该网段的网络掩码。
+	Link State ID和Net mask做与运算，即可得出该网段的IP网络号。
+Attached Router:在该LSA中，还包含一个连接到该网段的路由器列表。
+	从一个Transit网段到所连接的路由器的连接没有开销。
+
+3、Network-summary-LSA
+4、ASBR-summary-LSA
+5、AS-external-LSA
+===================================================================================
+五、SPF算法
+每个路由器计算以自己为根的最短路径树。故能保证区域内无环。
+
+计算最短路径树的过程分为两个阶段：
+	第一阶段，计算所有的Transit节点，包括路由器和Transit网段。
+	第二阶段，计算Stub网段。
+
+1、计算过程中首先初始化最短路径树，RTA将自己做为根节点添加到最短路径树上。
+2、RTA将自己添加到最短路径树上之后，检查自己生成的Router-LSA，对于该LSA中所描述的每一个连接，如果不是一个Stub连接，就把该连接添加到候选列表中，端点ID为Link ID，到根端点的开销为LSA中描述的Metric值。
+3、将候选列表中到根端点开销最小的端点移到最短路径树上。
+4、当有新节点添加到最短路径树上的时候，则检查LS ID为新节点的端点ID的LSA。如果LSA中所描述的连接的Link ID在最短路径树上已经存在，则忽略该连接。将候选列表中到根端点的开销最小的端点移动到最短路径树上。
+5、没有新端点被添加到候选列表中，将候选列表中到根端点的开销最小的端点移动到最短路径树上。如果在此时候选列表为空，则计算最短路径树的第一阶段结束。
+6、检查每个路由器端点的Router-LSA，计算Stub网段。（直接将所连Sub网段加到最短路径树上即可）
+注：如果在候选列表中出现两个端点ID一样但是到根端点的开销不一样的端点，则删除到根端点的开销大的端点。
 
 ===================================================================================
-五、基本配置
+六、基本配置
 1、OSPF基本配置包括：
 router id router-id ：指定此路由器的Router ID。如果不手动指定Router ID，则OSPF自动使用Loopback接口中最大的IP地址做为RouterID，如果没有配置Loopback接口，则使用物理接口中最大的IP地址做为RouterID；
 ospf process-id ：开启OSPF。OSPF支持多进程，如果不指定进程号，默认使用进程号码1；
@@ -277,3 +357,30 @@ vlink-peer router-id ：配置虚拟连接时，使用对端Router ID表示对�
 [RTA-Ethernet0/0]ospf authentication-mode simple plain huawei 
 [RTA-Ethernet0/0]quit
 [RTA]
+
+7、配置接口开销
+默认情况下，OSPF接口开销与接口的带宽有关，计算公式为：
+bandwidth-reference / bandwidth。
+bandwidth-reference默认取值为100M，bandwidth（带宽）的单位使用bit/s。因此，一个FE接口的开销默认为1。
+可以通过两种方式修改接口开销，第一种方式是在接口模式下通过ospf cost命令直接修改；第二种方法是在OSPF进程模式下修改bandwidth-reference，由系统自动计算所有接口的新的开销值。
+ospf cost cost
+	cost：OSPF接口的开销值，取值范围为1～65535。
+bandwidth-reference value
+	value：计算OSPF接口开销时所依据的参考值。单位Mbit/s，取值范围1～2147483648。
+
+[RTB]interface Ethernet 0/0
+[RTB-Ethernet0/0]ospf cost 5
+[RTB-Ethernet0/0]quit
+[RTB]
+[RTC]ospf
+
+[RTC-ospf-1]bandwidth-reference 500 
+Info: OSPF 1 Reference bandwidth is changed
+        Please ensure reference bandwidth is consistent across all routers.
+[RTC-ospf-1]quit
+[RTC]
+
+8、设置死亡间隔和Hello间隔
+[R1]inter g0/0/0
+[R1-GigabitEthernet0/0/0]ospf timer  dead 45         //设置死亡间隔时间为45秒
+[R1-GigabitEthernet0/0/0]ospf timer hello 15         //设置hello间隔时间为15秒
