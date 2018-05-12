@@ -24,3 +24,256 @@
 ===================================================================================
 4、多区域OSPF配置
 在每个区域中添加该区域的网段
+===================================================================================
+开放式最短路径优先协议（OSPF）
+===================================================================================
+一、基本概念
+OSPF是内部网关协议的一种，基于链路状态算法。
+OSPF直接运行于IP协议之上，使用IP协议号89。
+
+OSPF基本特点如下：
+支持无类域间路由（CIDR）：OSPF是专门为TCP/IP环境开发的路由协议，支持无类域间路由（CIDR）和可变长子网掩码（VLSM）。
+无路由自环：              由于路由的计算是基于详细链路状态信息（网络拓扑信息）的，所采用的SPF算法本身不会产生环路，并且OSPF报文携带生成者的ID信息，因此OSPF计算的路由无自环。
+收敛速度快：              触发式更新，一旦拓扑结构发生变化，新的链路状态信息立刻泛洪，对拓扑变化敏感。
+使用IP组播收发协议数据：  OSPF路由器使用组播和单播收发协议数据，因此占用的网络资源很小。
+支持多条等值路由：        当到达目的地的等开销路径有多条时，流量被均衡地分担在这些等开销路径上。
+支持协议报文的认证：      OSPF路由器之间交换的所有报文都被验证。
+
+在OSPF中，有两个基本的概念需要介绍，一个是自治系统，或者说一个OSPF路由域；一个是Router ID。
+在OSPF课程中，自治系统（Autonomous System）是指使用同一种路由协议交换路由信息的一组路由器，简称AS。
+由于LSDB描述的是整个网络的拓扑结构，包括网络内所有的路由器，所以网络内每个路由器都需要有一个唯一的标识，用于在LSDB中标识自己。Router ID就是这样一个用于在自治系统中唯一标识一台运行OSPF的路由器的32位整数。每个运行OSPF的路由器都有一个Router ID。
+Router ID的格式和IP地址的格式是一样的，推荐使用路由器Loopback0的IP地址做为路由器的Router ID。
+
+OSPF报文头部：（所有的OSPF报文使用相同的OSPF报文头部。）
+Version #：     OSPF协议号，应当被设置成2。
+Type：          OSPF报文类型，OSPF共有五种报文。
+Packet length： OSPF报文总长度，包括报文头部。单位是字节。
+Router ID：     生成此报文的路由器的Router ID。
+Area ID：       此报文需要被通告到的区域。
+AuType：        验证此报文所应当使用的验证方法。
+Authentication：验证此报文时所需要的密码等信息。
+
+验证一个OSPF报文头部是否合法包括：
+1. Version必须为2；
+2. Area ID应当满足以下两种情况之一：a）和接收端口所属区域的Area ID一致；b）和接收端口所属区域的Area ID不一致，但是值为0，表示该报文属于骨干区域，而且是在一个虚连接上发送的；
+3. AuType字段必须与该区域配置的Autype一致；
+4. Authentication为验证信息，内容与AuType字段相关。
+只有通过验证的OSPF报文才能被接受，否则将不能正常建立邻居关系。
+
+OSPF报文的验证：
+VRP中，OSPF支持区域验证和接口验证两种方式。当两种验证方式都存在时，优先使用接口验证方式。
+使用区域验证时，一个区域中所有路由器在该区域下的验证模式和口令必须一致；使用接口验证方式时，在相邻的路由器之间设置的验证模式和口令必须一致，优先级高于区域验证方式。
+
+路由器类型：
+内部路由器（Internal Router）：       内部路由器是指所有所连接的网段都在一个区域的路由器。属于同一个区域的IR维护相同的LSDB。
+区域边界路由器（Area Border Router）：区域边界路由器是指连接到多个区域的路由器。ABR为每一个所连接的区域维护一个LSDB。
+骨干路由器（Backbone Router）：       骨干路由器是指至少有一个端口（或者虚连接）连接到骨干区域的路由器。包括所有的ABR和所有端口都在骨干区域的路由器。
+AS边界路由器（AS Boundary Router）：  AS边界路由器是指和其他AS中的路由器交换路由信息的路由器，这种路由器向整个AS通告AS外部路由信息。AS边界路由器可以是内部路由器IR，或者是ABR，可以属于骨干区域也可以不属于骨干区域。
+
+网络类型：
+广播类型（Broadcast）：广播型网络是指支持两台以上路由器，并且具有广播能力的网络。当链路层协议是Ethernet、FDDI时，缺省情况下，OSPF认为网络类型是Broadcast。
+	在该类型的网络中：
+		通常以组播形式发送 Hello 报文、LSU 报文和 LSAck 报文。其中，224.0.0.5 的组播地址为 OSPF 设备的预留 IP 组播地址； 224.0.0.6的组播地址为 OSPF DR/BDR 的预留 IP 组播地址。
+ 		以单播形式发送 DD 报文和 LSR 报文。
+NBMA类型（ Non-Broadcast Multi-Acess）：非广播网络是指支持两台以上路由器互连，但是不具有广播能力的网络。当链路层协议是帧中继、 X.25 时，缺省情况下， OSPF 认为网络类型是 NBMA。
+	在该类型的网络中，以单播形式发送协议报文（Hello 报文、 DD 报文、LSR 报文、 LSU 报文、 LSAck 报文）。
+	在非广播网络上，OSPF有两种运行方式，非广播多路访问和点到多点。
+	在NBMA网络上，OSPF模拟在广播型网络上的操作，但是每个路由器的邻居需要手动配置。
+	NBMA方式要求网络中的路由器组成全连接。
+点到多点P2MP类型（Point-to-Multipoint）：没有一种链路层协议会被缺省的认为是 Point-to-Multipoint 类型。点到多点必须是由其他的网络类型强制更改的。常用做法是将非全连通的NBMA改为点到多点的网络。
+	在该类型的网络中：
+	以组播形式（224.0.0.5）发送 Hello 报文。
+  以单播形式发送其他协议报文（DD 报文、 LSR 报文、 LSU 报文、LSAck 报文）。
+	将整个非广播网络看成是一组点到点网络。每个路由器的邻居可以使用底层协议例如反向地址解析协议（Inverse ARP）来发现。
+	对于不能组成全连接的网络应当使用点到多点方式，例如只使用PVC的不完全连接的帧中继网络。
+点到点P2P类型（point-to-point）：点到点网络是指只把两台路由器直接相连的网络。当链路层协议是 PPP、 HDLC 和 LAPB 时，缺省情况下， OSPF 认为网络类型是 P2P。
+	在该类型的网络中，以组播形式（224.0.0.5）发送协议报文（Hello 报文、 DD 报文、 LSR 报文、 LSU 报文、 LSAck 报文）。
+
+报文类型：（OSPF有五种报文类型，但是OSPF报文头部格式都是相同的。）
+Hello 报文：                                     周期性发送，用来发现和维持 OSPF 邻居关系。
+DD 报文（Database Description packet）：         描述本地 LSDB 的摘要信息，用于两台设备进行数据库同步。
+LSR 报文（Link State Request packet）：          用于向对方请求所需的 LSA。设备只有在 OSPF邻居双方成功交换 DD报文后才会向对方发出 LSR 报文。
+LSU 报文（Link State Update packet）：           用于向对方发送其所需要的 LSA。
+LSAck 报文（Link StateAcknowledgment packet）：  用来对收到的 LSA 进行确认。
+注：除了Hello报文以外，其他所有报文只在建立了邻接关系的路由器之间发送。除Hello报文外，其它的OSPF报文都携带LSA信息。
+
+LSA报文头部：
+LS age：            此字段表示LSA已经生存的时间，单位是秒。
+LS type：           此字段标识了LSA的格式和功能。常用的LSA类型有五种。
+Link State ID：     此字段是该LSA所描述的那部分链路的标识。例如Router ID等。
+Advertising Router：此字段是产生此LSA的路由器的Router ID。
+LS sequence number：此字段用于检测旧的和重复的LSA。
+注：LS type，Link State ID和Advertising Router的组合共同标识一条LSA。
+
+LSA类型：
+Router-LSA（Type1）：              每一个路由器都会生成。这种LSA描述某区域内路由器端口链路状态的集合。只在所描述的区域内泛洪。
+Network-LSA（Type2）：             由DR生成，用于描述广播型网络和NBMA网络。这种LSA包含了该网络上所连接路由器的列表。只在该网络所属的区域内泛洪。
+Network-summary-LSA（Type3）：     由区域边界路由器（ABR）产生，描述到AS内部本区域外部某一网段的路由信息，在该LSA所生成的区域内泛洪。这类LSA描述的是精简的路由信息，而不是详细的链路状态信息。（默认路由也可以通过Network-Summary-LSA发布。）
+ASBR-summary-LSA（Type4）：        由区域边界路由器（ABR）产生，描述到某一自治系统边界路由器（ASBR）的路由信息，在ABR所连接的区域内泛洪（ASBR所在区域除外）。
+AS-external-LSA（Type5）：         由自治系统边界路由器（ASBR）产生，描述到AS外部某一网段的路由信息，在整个AS内部泛洪。当ABR向其它区域通告所接收到的第五类LSA时，同时为该区域生成一条第四类LSA描述如何到达ASBR。第四类LSA只能在一个区域内泛洪，第五类LSA每泛洪到一个区域，相关的ABR就要为该区域重新生成一条新的第四类LSA。
+NSSA LSA（Type7）：                由ASBR产生，描述到AS外部的路由，仅在NSSA区域内传播。
+Opaque LSA（Type9/Type10/Type11）：Opaque LSA 提供用于 OSPF 的扩展的通用机制。其中：
+	Type9 LSA 仅在接口所在网段范围内传播。用于支持GR的Grace LSA就是Type9 LSA的一种。
+  Type10 LSA 在区域内传播。用于支持TE的LSA就是Type10 LSA的一种。
+  Type11 LSA 在自治域内传播，目前还没有实际应用的例子。
+
+Link State ID是该LSA所描述链路的标识，对于不同类型的LSA，其含义也不同。
+Router-LSA：         生成这条LSA的路由器的Router ID
+Network-LSA：        所描述网段上DR的端口IP地址
+Network-Summary-LSA：所描述的目的网段的地址
+ASBR-Summary-LSA：   所描述的ASBR的Router ID
+AS-External-LSA：    所描述的目的网段的地址
+
+LS type、Link State ID和Advertising Router的组合唯一标识一条LSA，但是对于一条LSA，有可能同时存在多个实例。LS sequence number用于检查哪一个实例更新。
+LS Sequence Number：
+LS Sequence Number是一个32位的有符号整数，用于检测过期和重复的LSA。
+由于LS Sequence Number是32位有符号整数，因此数值0x80000000，也就是-231是最小的数值，但此数值是被保留的，协议可用的最小数值为0x80000001（即-231＋1）。
+当路由器生成一条新的LSA时，使用序列号0x80000001做为该LSA的初始序列号，此后，每次更新该LSA，序列号加1。
+序列号越大表示该LSA实例越新。
+当路由器收到一条自己产生的LSA，而且此LSA的LS Sequence Number比该路由器最近产生的这条LSA的LS Sequence Number更新时，路由器需要重新生成这条LSA的实例，其LS Sequence Number为收到的LSA中的LS Sequence Number加1。
+
+LS Age：
+此数值的单位是秒。在LSDB中的LSA的LS age随时间而增长。
+一条LSA在向外泛洪之前，LS Age的值需要增加InfTransDelay（该值可以在端口上设置，缺省为1秒，表示在链路上传输的延迟）。
+如果一条LSA的LS Age达到了LSRefreshTime（30分钟），这条LSA的生成者需要重新生成一个该LSA的实例，如果一条LSA的LS Age达到了MaxAge（1小时），这条LSA就要被删除。
+LS Age数值越小表示此LSA越新。
+如果路由器希望从网络中删除一条自己此前生成的LSA，则重新生成该条LSA的一个实例，将LS Age设置为Max Age即可。
+如果路由器收到一条LS Age设置为Max Age的LSA，则从LSDB中删除此LSA（如果LSDB中存在此LSA）。
+===================================================================================
+二、邻居关系的过程和端口状态的过程
+邻居状态机：
+Down：          这是邻居的初始状态，表示没有从邻居收到任何信息。在NBMA网络上，此状态下仍然可以向静态配置的邻居发送Hello报文，发送间隔为PollInterval，通常和RouterDeadInterval间隔相同。
+Attempt：       此状态只在NBMA网络上存在，表示没有收到邻居的任何信息，但是已经周期性的向邻居发送报文，发送间隔为HelloInterval。如果RouterDeadInterval间隔内未收到邻居的Hello报文，则转为Down状态。
+Init：          在此状态下，路由器已经从邻居收到了Hello报文，但是自己不在所收到的Hello报文的邻居列表中，表示尚未与邻居建立双向通信关系。在此状态下的邻居要被包含在自己所发送的Hello报文的邻居列表中。
+2-WayReceived： 此事件表示路由器发现与邻居的双向通信已经开始（发现自己在邻居发送的Hello报文的邻居列表中）。Init状态下产生此事件之后，如果需要和邻居建立邻接关系则进入ExStart状态，开始数据库同步过程，如果不能与邻居建立邻接关系则进入2-Way。
+2-Way：         在此状态下，双向通信已经建立，但是没有与邻居建立邻接关系。这是建立邻接关系以前的最高级状态。
+1-WayReceived： 此事件表示路由器发现自己没有在邻居发送Hello报文的邻居列表中，通常是由于对端邻居重启造成的。
+ExStart：       这是形成邻接关系的第一个步骤，邻居状态变成此状态以后，路由器开始向邻居发送DD报文。主从关系是在此状态下形成的；初始DD序列号是在此状态下决定的。在此状态下发送的DD报文不包含链路状态描述。
+Exchange：      此状态下路由器相互发送包含链路状态信息摘要的DD报文，描述本地LSDB的内容。
+Loading：       相互发送LS Request报文请求LSA，发送LS Update通告LSA。
+Full：          两路由器的LSDB已经同步。
+
+邻居和邻接关系的建立过程：
+1. 邻居状态机变为ExStart以后，RTA向RTB发送第一个DD报文，在这个报文中，DD序列号被设置为552A（假设），Initial比特为1表示这是第一个DD报文，More比特为1表示后续还有DD报文要发送，Master比特为1表示RTA宣告自己为主路由器。
+2. 邻居状态机变为ExStart以后，RTB向RTA发送第一个DD报文，在这个报文中，DD序列号被设置为5528（假设）。由于RTB的Router ID比RTA的大，所以RTB应当为主路由器，Router ID的比较结束后，RTA会产生一个NegotiationDone的事件，所以RTA将状态机从ExStart改变为Exchange。
+3. 邻居状态机变为Exchange以后，RTA发送一个新的DD报文，在这个新的报文中包含LSDB的摘要信息，序列号设置为RTB在步骤2里使用的序列号，More比特为0表示不需要另外的DD报文描述LSDB，Master比特为0表示RTA宣告自己为从路由器。收到这样一个报文以后，RTB会产生一个NegotiationDone的事件，因此RTB将邻居状态改变为Exchange。
+4. 邻居状态变为Exchange以后，RTB发送一个新的DD报文，该报文中包含LSDB的描述信息，DD序列号设为5529（上次使用的序列号加1）。
+5. 即使RTA不需要新的DD报文描述自己的LSDB，但是做为从路由器，RTA需要对主路由器RTB发送的每一个DD报文进行确认。所以，RTA向RTB发送一个新的DD报文，序列号为5529，该报文内容为空。
+发送完最后一个DD报文之后，RTA产生一个ExchangeDone事件，将邻居状态改变为Loading；RTB收到最后一个DD报文之后，改变状态为Full（假设RTB的LSDB是最新最全的，不需要向RTA请求更新）。
+
+1. 邻居状态变为Loading之后，RTA开始向RTB发送LS request报文，请求那些在Exchange状态下通过DD报文发现的，而且在本地LSDB中没有的链路状态信息。
+2. RTB收到LS Request报文之后，向RTA发送LS Update报文，在LS Update报文中，包含了那些被请求的链路状态的详细信息。RTA收到LS Update报文之后，将邻居状态从Loading改变成Full。
+3. RTA向RTB发送LS Ack报文，确保信息传输的可靠性。LS Ack报文用于泛洪对已接收LSA的确认。
+邻居状态变成Full，表示达到完全邻接状态。
+
+是否和邻居建立邻接关系：
+Point-to-point：     总是和邻居建立邻接关系
+Point-to-MultiPoint：总是和邻居建立邻接关系
+Virtual link：       总是和邻居建立邻接关系
+Broadcast、NBMA：    DR总是和其他所有路由器包括BDR建立邻接关系；BDR总是和其他所有路由器包括DR建立邻接关系；处于DROther状态的路由器只与DR和BDR建立邻接关系
+
+邻居关系和邻接关系的区别：
+只要有端口连接到同一个网段的两个路由器就可以形成邻居关系，邻接关系是指可以交换链路状态信息以及路由信息的邻居关系，只有部分邻居关系可以形成邻接关系。
+
+端口状态机：（广播型和NBMA型网络）
+Down:    接口关闭
+Loopback:环回口状态
+Waiting：在此状态下，路由器通过监听接收到的Hello报文检测网络中是否已经有DR和BDR。在此状态下的路由器不可以参与选举DR和BDR。
+Backup： 在此状态下，该路由器成为所连接网络上的BDR，并与网段中所有的其他路由器建立邻接关系。
+DR：     在此状态下，该路由器成为所连接网络上的DR，并与网段中所有的其他路由器建立邻接关系。
+DROther：该路由器连接到一个广播型网段或者NBMA网段，而且该路由器不是一个DR或者BDR。此状态下的路由器与DR和BDR形成邻接关系并交换路由信息。
+BackupSeen：路由器已经检测到网络上是否存在BDR。
+注：一个OSPF路由器在广播型网段和NBMA网段上选举DR和BDR之前，首先会等待一段时间（RouterDeadInterval），在这段时间里检测网络上是否已经存在DR和BDR，如果已经有DR和BDR，则不启动选举过程，直接进入DROther状态。因此，网络上Router Priority最大的路由器不一定是DR，Router Priority第二大的路由器也不一定是BDR。
+===================================================================================
+三、DR/BDR
+DR是广播型网段或者NBMA网段上的指定路由器，用于和其它路由器形成邻接关系，交换路由信息。
+BDR是广播型网段或者NBMA网段上的备份指定路由器，用于和DR以及其他路由器形成邻接关系，交换路由信息。作为DR的备份路由器，当DR失效时，BDR将自动成为DR。
+
+作用：减少邻接关系的数量，从而减少链路状态信息以及路由信息的交换次数，这样可以节省带宽，减少路由器硬件的负担。一个既不是DR也不是BDR的路由器只与DR和BDR形成邻接关系并交换链路状态信息以及路由信息，这样就大大减少了大型广播型网络和NBMA网络中的邻接关系数量。
+选举规则：
+1、DR和BDR由OSPF的Hello协议选举，选举是根据端口的路由器优先级（Router Priority）进行的。
+2、如果Router Priority被设置为0，那么该路由器将不允许被选举成DR或者BDR。
+3、Router Priority越大越优先。如果相同，Router ID大者优先。 
+4、但是为了维护网络上邻接关系的稳定性，如果网络中已经存在DR和BDR，则新添加进该网段的路由器不会成为DR和BDR，不管该路由器的Router Priority是否最大。
+5、如果当前DR故障，当前BDR自动成为新的DR，网络中重新选举BDR；如果当前BDR故障，则DR不变，重新选举BDR。
+（这种选举机制的目的是为了保持邻接关系的稳定，减小拓扑结构的改变对邻接关系的影响。）
+===================================================================================
+四、五类LSA详解
+
+===================================================================================
+五、基本配置
+1、OSPF基本配置包括：
+router id router-id ：指定此路由器的Router ID。如果不手动指定Router ID，则OSPF自动使用Loopback接口中最大的IP地址做为RouterID，如果没有配置Loopback接口，则使用物理接口中最大的IP地址做为RouterID；
+ospf process-id ：开启OSPF。OSPF支持多进程，如果不指定进程号，默认使用进程号码1；
+area area-id ：进入区域视图；
+network ip-address wildcard ：指定接口所在的网段地址，指定网段时，要使用该网段网络掩码的反码。
+
+2、配置Router Priority
+ospf dr-priority value：修改端口的Router Priority。Router Priority的取值范围是0～255，默认值为1。
+如果两台路由器Router Priority值相同，则比较Router ID，Router ID大的更优先。
+如果修改了Router Priority，需要重启ospf进程才能重新参与选举DR和BDR。
+
+3、配置NBMA网络
+NBMA网络中不需要配置反向ARP，邻居需要手动指定。指定邻居的时候使用该邻居在该网段上的IP地址来标识。
+在RTA上配置两个邻居，10.1.1.2和10.1.1.3。
+peer ip-address [ dr-priority dr-priority-number ]
+dr-priority-number：邻居的Router Priority，默认为1。
+
+[RTA]router id 1.1.1.1 
+[RTA]ospf 
+[RTA-ospf-1]peer 10.1.1.2 
+[RTA-ospf-1]peer 10.1.1.3 
+[RTA-ospf-1]area 1
+[RTA-ospf-1-area-0.0.0.1]network 1.1.1.1 0.0.0.0 
+[RTA-ospf-1-area-0.0.0.1]network 10.1.1.0 0.0.0.255
+[RTA-ospf-1-area-0.0.0.1]return
+
+4、配置点到多点网络
+由于网络中的路由器不是全连接的，所以帧中继端口的OSPF网络类型需要手动指定为点到多点。
+帧中继的反向ARP需要在端口上开启。
+ospf network-type  broadcast | nbma | p2mp | p2p 
+OSPF共有四种网络类型。
+
+[RTA]router id 1.1.1.1
+[RTA]ospf 
+[RTA-ospf-1]area 1
+[RTA-ospf-1-area-0.0.0.1]network 1.1.1.1 0.0.0.0
+[RTA-ospf-1-area-0.0.0.1]network 10.1.1.0 0.0.0.255
+[RTA]interface Serial 1/0
+[RTA-Serial1/0]ospf network-type p2mp
+[RTA-Serial1/0]return
+
+5、配置虚链接
+配置虚连接时，需要指定虚连接对端的Router ID。
+虚连接在transit区域的区域视图下配置。
+vlink-peer router-id ：配置虚拟连接时，使用对端Router ID表示对端路由器。
+
+[RTB]router id 2.2.2.2
+[RTB]ospf 
+[RTB-ospf-1]area 0 
+[RTB-ospf-1-area-0.0.0.0]network 2.2.2.2 0.0.0.0
+[RTB-ospf-1-area-0.0.0.0]network 10.1.1.0 0.0.0.255
+[RTB-ospf-1]area 1
+[RTB-ospf-1-area-0.0.0.1]network 10.1.2.0 0.0.0.255
+[RTB-ospf-1-area-0.0.0.1]vlink-peer 3.3.3.3 
+[RTB-ospf-1-area-0.0.0.1]return
+
+6、配置OSPF认证
+如果验证方式为区域验证，则在区域视图下使用如下命令：
+验证模式为明文验证：
+	authentication-mode  simple { [ plain ] plain-text | cipher cipher-text }
+		plain：密码显示方式为明文。
+		cipher：密码显示方式为密文。
+验证模式为MD5验证：
+	authentication-mode md5 key-id { [ plain ] plain-text | cipher cipher-text }
+
+本例中，只有一个区域和两个路由器。在RTA上，配置验证方式为接口验证，配置验证模式为明文验证（simple），密码显示方式为明文(plain)，RTA和RTB之间的链路的密码为“huawei”。
+[RTA]router id 1.1.1.1
+[RTA]ospf 
+[RTA-ospf-1]area 1
+[RTA-ospf-1-area-0.0.0.1]network 1.1.1.1 0.0.0.0
+[RTA-ospf-1-area-0.0.0.1]network 10.1.1.0 0.0.0.3
+[RTA]interface Ethernet 0/0
+[RTA-Ethernet0/0]ospf authentication-mode simple plain huawei 
+[RTA-Ethernet0/0]quit
+[RTA]
