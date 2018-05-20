@@ -262,7 +262,7 @@ Advertising Router：设置为ASBR的Router ID。
 Net mask：          设置为目的网段的网络掩码。
 Metric：            可以在引入外部路由的时候指定，默认值为1。
 Tag：               用于传递该路由的附加信息，通常用于路由策略，默认值为1。
-
+Forwarding Address: 引入外部路由下一跳的地址（次优地址） 
 OSPF共有两类外部路由：
 第一类外部路由的AS外部开销值被认为和AS内部开销值是同一数量级的，因此第一类外部路由的开销值为AS内部开销值（路由器到ASBR的开销）与AS外部开销值之和；
 第二类外部路由的AS外部开销值被认为远大于AS内部开销值，因此第二类外部路由的开销值只是AS外部开销值，忽略AS内部开销值。
@@ -273,11 +273,34 @@ RTA通告一条去往N1的AS外部路由，类型为1，开销为100。
 RTB也通告一条去往N1的AS外部路由，类型为2，开销为20。
 RTC收到RTA和RTB的Type5 LSA，由于RTA宣告的外部路由类型为Type1，所以RTC认为通过RTA去往N1的路由开销为100+1=101，RTB宣告的外部路由类型为Type2，所以RTC认为通过RTB去往N1的路由开销为20（忽略AS内部开销），由于第一类外部路由比第二类外部路由优先，所以RTC选择RTA做为去往N1的下一跳，尽管开销值看上去更大一些。
 
+在5类LSA中什么情况下回填充FA的地址？
+1、引入外部路由下一跳的出接口被宣告进OSPF；
+2、出接口的网络类型不能是P2P或P2MP；
+3、出接口不能是一个OSPF的silent接口(配置为silent接口不发送和接受OSPF报文)；
+4、如果外部路由没有下一跳，不会填充FA地址。
+
+计算FA地址的条件？
+到达FA地址必须是OSPF域内或者域间路由可达。
+
+注： 
+1、如果5类LSA中FA地址被填充，计算外部路由只计算F到达FA的距离，并且需要保证本地路由表中存在到达FA地址的域内或者域间路由，如果不存在路由条目，该5类LSA不能参与路由计算。
+2、如果5类LSA中没有填充FA地址，计算外部路由只计算到达ASBR的距离。
+3、如果引入外部路由的下一跳不是直连可达地址，需要通过迭代查询找到直连接口的下一跳并填充FA地址。
+
 次优外部路由解决：
 OSPF通过设置Forwarding Address来解决这个问题。
 通常情况下，生成AS-External-LSA时，Forwarding Address设置为0.0.0.0。
 但是如果引入到OSPF中的外部路由的下一跳在一个OSPF路由域内，则在描述该外部路由的AS-External-LSA中，Forwarding Address应当被设置为ASBR路由表中该路由的下一跳。
 如果Forwarding Address没有被设置为0，则该路由的下一跳就是路由表中到Forwarding Address的下一跳。
+
+
+7类LSA：
+7类LSA默认填充FA字段。
+
+7类LSA的FA字段填充规则：
+1、如果将引入外部路由下一跳的出接口宣告进OSPF，则FA地址填充为外部路由下一跳的地址，并且该接口的网络类型不能是点到点或者点到多点，同时不能是一个silent接口。
+2、优选宣告进OSPF逻辑接口IP地址大的一个，如果没有逻辑接口，则选择宣告进OSPF物理接口IP地址大的一个。
+
 
 ===================================================================================
 五、SPF算法
@@ -317,7 +340,27 @@ LSDB描述两接口处于不同网段的点到点网段的规则如下：
 注：如果在候选列表中出现两个端点ID一样但是到根端点的开销不一样的端点，则删除到根端点的开销大的端点。
 
 ===================================================================================
-六、基本配置
+六、特殊区域
+Stub和Totally stub区域：
+
+	OSPF允许将特定区域配置为Stub区域。
+	AS-external-LSA不允许被发布到Stub区域内。到AS外部的路由只能基于由ABR生成的一条默认路由。
+	Stub区域技术可以减少Stub区域内部路由器上LSDB的规模和对内存的需求。
+	虚连接不能跨越Stub area。
+
+	如果一个区域被配置为完全Stub区域，只有一条由Network-Summary-LSA描述的默认路由被通告到该区域中，没有区域间的路由信息和AS外部的路由信息。即完全Stub区域的ABR不向该区域中泛洪Summary-LSA（除了默认路由）和AS-external-LSA。
+
+	Stub区域：该区域内所有路由器都要配置stub属性（过滤5类LSA）；
+	totally stub区域：只需要在ABR上配置totally stub属性（过滤3类和5类LSA）。（ABR会通过3类LSA向totally stub区域发送一条默认路由）
+
+
+NSSA（Not So Stubby Area）非末节区域：
+区域中可以包含ASBR。
+
+NSSA区域中的ASBR重分发的外部路由会以7类LSA的方式在NSSA区域内防洪，为了让其他区域的设备也可以接收到这些外部路由，需要在ABR上做7转5，变成5类后通告给其他的区域。
+注：如果区域中包含对个ABR，通告比较RID，由RID大的ABR进行7转5。
+===================================================================================
+七、基本配置
 1、OSPF基本配置包括：
 router id router-id ：指定此路由器的Router ID。如果不手动指定Router ID，则OSPF自动使用Loopback接口中最大的IP地址做为RouterID，如果没有配置Loopback接口，则使用物理接口中最大的IP地址做为RouterID；
 ospf process-id ：开启OSPF。OSPF支持多进程，如果不指定进程号，默认使用进程号码1；
@@ -439,3 +482,7 @@ import-route { limit [limit-number] | protocol [ cost value ] [ type value ] [ t
 引入外部路由时，可以配置路由开销，外部路由类型和tag值。
 limit：指定一个OSPF进程中可引入的最大外部路由数量。
 
+11、Stub区域配置
+ospf 1
+	area 0
+		stub (no-summary)     //不加no-summary是stub区域配置，加上no-summary参数就是totally stub区域的配置。
