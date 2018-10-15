@@ -38,6 +38,13 @@ ISIS中不存在虚链路。
 
 ISIS封装在二层，使用组播地址：0180-c200-0014(用于L1)、0180-c200-0015(用于L2)。
 ========================================================
+ISIS 报文
+Hello-IIH（isis hello）：L1的LAN的IIH，L2的LAN的IIH，P2P的IIH。
+注：ISIS的广播类型的hello报文会添加填充，直到报文大小为1500B。好处在于可以对传输过程中对于邻居接口上较大的帧或者不匹配的MTU做出早期检测，MTU不一致导致邻居失常，但两侧填充不一致不影响。（不会影响传输效率，64B也是传一次，1500B也是传一次。）但是，P2P链路上发送不带有填充的Hello报文。
+
+LSP,链路状态PDU（约等于OSPF的LSU中包含的LSA）：L1的LSP和L2的LSP。
+SNP，序列号PDU：CSNP（完整序列号PDU，complete）和PSNP（部分序列号PDU，partial），分为L1和L2的SNP，功能类似于DBD或者LSR或者LSAck报文。
+========================================================
 LEVEL
 
 ISIS中接口默认属于L1/L2接口。
@@ -69,13 +76,75 @@ DIS优先级数值最大的被选为DIS。如果优先级数值最大的路由�
 同一网段上的同一级别的路由器之间都会形成邻接关系，包括所有的非DIS路由器之间也会形成邻接关系，但LSDB的同步仍然依靠DIS来保证。
 DIS用来创建和更新伪节点，并负责生成伪节点的链路状态协议数据单元LSP，用来描述这个网络上有哪些网络设备。
 
-========================================================
-ISIS 报文
-Hello-IIH（isis hello）：L1的LAN的IIH，L2的LAN的IIH，P2P的IIH。
-注：ISIS的广播类型的hello报文会添加填充，直到报文大小为1500B。好处在于可以对传输过程中对于邻居接口上较大的帧或者不匹配的MTU做出早期检测，MTU不一致导致邻居失常，但两侧填充不一致不影响。（不会影响传输效率，64B也是传一次，1500B也是传一次。）但是，P2P链路上发送不带有填充的Hello报文。
+3、邻接关系排错
+	1）同一子网
+		10.1.12.2/28---10.1.12.1/24 成功的建立了邻居关系
+		10.1.12.20/28--10.1.12.1/24没有成功建立邻居，不在一个子网，为什么ping 通？PPP
+		[R2-Serial2/0/0]dis isis error
+		Unusable IP Addr        : 45 
+		例外情况
+		[R2-Serial2/0/0]isis peer-ip-ignore //执行在点到点链路上不检查子网
+		[R2-Serial2/0/0]dis isis peer
 
-LSP,链路状态PDU（约等于OSPF的LSU中包含的LSA）：L1的LSP和L2的LSP。
-SNP，序列号PDU：CSNP（完整序列号PDU，complete）和PSNP（部分序列号PDU，partial），分为L1和L2的SNP，功能类似于DBD或者LSR或者LSAck报文。
+								  Peer information for ISIS(1)
+
+		  System Id     Interface          Circuit Id       State HoldTime Type     PRI
+		-------------------------------------------------------------------------------
+		0000.0000.2020  GE0/0/2            0000.0000.2020.01 Up   9s       L2       64 
+		1111.1111.1111  S2/0/0             0000000002        Up   23s      L1       -- 
+	2）不同网络类型不能建立邻居
+		dis isis error
+		isis circuit-type p2p
+		  Bad Circuit Type        : 8 
+	3）系统ID不能重复
+	4）通过邻居认证（区域和域认证，属于LSP的认证）
+	5)mtu一致
+		dis isis error
+		Longer packet           : 15
+	6）不要在物理接口上静默
+		interface GigabitEthernet0/0/0
+		 ip address 10.1.14.1 255.255.255.0 
+		 isis enable 1
+		 isis silent
+
+4、邻居关系建立过程及LSP同步
+	1）广播环境
+		广播上3次握手，携带的邻居列表为接口的MAC来标识
+		LSP同步：3种报文（CSNP和PSNP、LSP）
+		CSNP作用类似DBD，请求者需要发送PSNP（LSR）来请求具体的LSP
+		SPF:节点信息、路由信息
+		新旧LSP比较标准：序列号大者--剩余生存时间大者--校验值大者。
+		
+	2）点到点环境
+		相对而言更加简单，通常请求需要2次握手，改成3次握手
+		采用系统ID来作为标识邻居列表
+		默认3次握手，可以改为2次
+========================================================
+ISIS路由泄漏（路由渗透）
+
+FIB，即数据转发表，由于路由负载，要通过随机的数据中的五元组hash，hash值决定数据放到哪些链路，很难控制数据转发到哪个链路。
+
+配置在L1/2路由器上，Level-1-2路由器手动将Level 2层级路由渗透到Level 1层级，可以避免Level-1路由器路由次优路由。
+
+可以在L2到L1做路由泄露，也可以控制从L1到L2的路由更新。
+
+度量值范围
+[R1-Serial2/0/0]isis cost ?        
+  INTEGER<1-63>  Cost value //默认情况是narrow的cost-style-->wide cost-style
+对MPLS TE以及管理TAG的实现都需要wide的方式
+[SW2-isis-1]cost-style wide //所有在网设备都需要改变，否则路由计算出错
+[SW2-Vlanif40]isis cost ?
+  INTEGER<1-16777215>  Cost value
+[SW2-LoopBack0]isis tag-value 20202020 //对该接口的路由直接增加管理2020202，而不用在引入（外部路由）的时候才能增加TAG!
+
+UP/DOWN 比特，用于不同Level之间的路由防环，已经被标记的路由不会再传回原来的区域
+========================================================
+ISIS 的汇总
+------------
+ISIS的过载位
+------------
+ISIS的权重值
+权重值越小，越优先。
 ========================================================
 配置
 1、基本配置
@@ -91,6 +160,13 @@ isis 1
 接口下调整：
 int g0/0/0
  isis circuit-level level-1 
+
 3、修改接口网络类型
 int g0/0/0
  isis circuit-type p2p    //只能将物理接口改成ISIS的P2P类型。（想改回来直接undo就行）
+
+4、路由泄漏
+[R4]isis
+[R4-isis-1]import-route isis level-1 into level-2 filter-policy acl-name L1TOL2 tag 100 //仅仅把L1的符合条件的路由引入到L2,这些路由增加了管理TAG 100（注意需要wide的cost-style）
+[R4]acl name L1TOL2 3999  
+[R4-acl-adv-L1TOL2] rule 5 permit ip source 11.1.1.1 0

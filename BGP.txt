@@ -1,0 +1,57 @@
+===========================================
+BGP（Border gateway protocol，边界网关协议）
+===========================================
+一、BGP的概述和基础
+1、AS，自制系统域（16位的号码空间-->扩展为32的号码空间）。一个设备只能有一个AS的进程。
+2、BGP工作在AS之间，承载大量路由，同时提供丰富的选路策略。
+3、EGP（External gateway protocol，外部网关协议），有且只有一种，即BGP；
+   IGP（Internal gateway protocol，内部网关协议），如：RIP、OSPF、ISIS等。
+4、BGP特征：
+	BGP是外部路由协议，用来在AS之间传递路由信息
+	是一种增强的距离矢量路由协议----（因为路由量太大，不适合用LSDB）
+		可靠的路由更新机制----（基于TCP，端口179）
+		丰富的Metric度量方法----（如：下一跳、起源等）
+		从设计上避免了环路的发生
+	为路由附带属性信息
+	支持CIDR（无类别域间选路）
+	丰富的路由过滤和路由策略
+5、BGP站在AS角度考虑问题，其他协议站在设备的角度考虑。
+6、BGP可靠的路由更新
+	传输协议：TCP，端口号179
+	无需周期性更新
+	路由更新：只发送增量路由
+	周期性发送keepAlive报文检测TCP的连通性
+
+-----------------
+1、EBGP
+判断标准：AS号码是否相同。
+EBGP有两种实施方式：a、采用直连路由来建立BGP邻居；b、采用环回接口来建立BGP邻居（作为a的备份）。
+EBGP的TTL值默认为1。
+
+
+
+2、IBGP
+AS号码相同的BGP邻居。
+需要IBGP的理由：AS内部需要大量路由；AS内部也需要IBGP来操控路由。
+IBGP建议使用环回接口建立邻居。（华为设备的环回接口不能关闭）
+IBGP的TTL值默认为255。
+===========================================
+BGP邻居
+1、BGP通过单播建立邻居关系。
+2、在构建邻居关系之前需要用带源的ping测试邻居两侧的源地址的通信。
+3、BGP工作原理：a、通过TCP建立邻居；b、更新数据库；c、通过选路的原则得到最优的路由表。
+4、BGP邻居可以跨越设备建立。
+
+【配置】
+bgp 100
+	(a)peer 10.1.15.5 as-number 200    //通过直连路由建立BGP邻居
+	(b)peer 1.1.1.1 as-number 200    //通过环回接口建立BGP邻居
+	   peer 1.1.1.1 connect-interface LoopBack0  //通过换回接口来建立EBGP邻居，需要指定TTL跳数。
+	peer 10.1.15.5 ebgp-max-hop 5    //手动指定TTL值
+	import-route ospf 1   //引入OSPF路由
+	network 5.5.5.5 32    //该设备上以其它形式（IGP得到的、直连的）存在的一条路由，然后通过BGP产生路由。区别于IGP仅仅产生直连的路由。
+
+display bgp peer   //查看BGP邻居关系
+display bgp verbose // 查看BGP详细信息
+display tcp status   //查看tcp关系
+display bgp routing-table    //查看BGP路由信息
