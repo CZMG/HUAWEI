@@ -28,8 +28,6 @@ BGP（Border gateway protocol，边界网关协议）
 EBGP有两种实施方式：a、采用直连路由来建立BGP邻居；b、采用环回接口来建立BGP邻居（作为a的备份）。
 EBGP的TTL值默认为1。
 
-
-
 2、IBGP
 AS号码相同的BGP邻居。
 需要IBGP的理由：AS内部需要大量路由；AS内部也需要IBGP来操控路由。
@@ -42,6 +40,14 @@ BGP邻居
 3、BGP工作原理：a、通过TCP建立邻居；b、更新数据库；c、通过选路的原则得到最优的路由表。
 4、BGP邻居可以跨越设备建立。
 
+5、BGP邻居状态机：
+	1）IDLE，空状态，没有建立TCP连接。常见原因：eBGP通过环回口建立邻居，忘记配置多跳；没有到达对端更新源的路由；在地址族中没有激活邻居（只有IPv4单播协议默认激活邻居，其他协议默认不激活）；管理性的关闭了邻居（Idle(Admin)）
+	2）CONNECT，在重连计时器时间内和邻居尝试建立TCP连接。
+	3）active，没有构建TCP会话。原因：指定了错误的TCP的目的地；指定了错误的更新源（connect-interface）；也可能邻居端缺少路由
+	4）OPENSENT，TCP构建成功，发送open报文。
+	5）OPENFIRM，确认收到open报文。
+	6）ESTABLISHED,建立成功。
+
 【配置】
 bgp 100
 	(a)peer 10.1.15.5 as-number 200    //通过直连路由建立BGP邻居
@@ -50,8 +56,77 @@ bgp 100
 	peer 10.1.15.5 ebgp-max-hop 5    //手动指定TTL值
 	import-route ospf 1   //引入OSPF路由
 	network 5.5.5.5 32    //该设备上以其它形式（IGP得到的、直连的）存在的一条路由，然后通过BGP产生路由。区别于IGP仅仅产生直连的路由。
+	peer 10.1.15.5 ignore   //断开与对端的邻居关系
+	timer keepalive 60 hold 180   //手动指定keepalive和hold时间。
+	peer 1.1.1.1 next-hop-local   //ASBR告知IBGP邻居1.1.1.1下一跳地址为本设备。
 
 display bgp peer   //查看BGP邻居关系
 display bgp verbose // 查看BGP详细信息
 display tcp status   //查看tcp关系
 display bgp routing-table    //查看BGP路由信息
+==========================================
+BGP的报文
+1、5种报文类型：
+	OPEN：AS，RID，holdtime（180s，3倍keepalive时间），非常重要的能力值（地址族）
+	KEEPALIVE：保活报文（60s），时间值不同不影响邻居关系，邻居两侧协商一个较小的时间值
+	UPDATE：NLRI（网络层可达信息，即路由前缀以及对应的属性，公认必遵：下一跳、起源和AS-path）
+	NOTIFICATION：错误通知，一旦受到该报文，就断开TCP连接
+	ROUTE REFRESH：请求对端设备刷新路由策略得到的报文
+2、【配置】(BGP更新很慢，必要时需要手动刷新)
+refresh bgp all 
+	export  Trigger outbound soft reconfiguration //出方向刷新自身的路由策略，发出去更新报文
+	import  Trigger inbound soft reconfiguration //发出去route refresh，请求邻居刷新策略，把更新发回给本设备（入方向）
+===========================================
+BGP如何产生路由
+1）network直连的、静态的、IGP路由（因为BGP的目的是在AS之间更新路由），起源属性IGP
+2）从其他协议引入路由，起源属性？
+3）聚合路由（汇总路由），起源属性IGP
+BGP如何向邻居更新路由：
+1）BGP向邻居更新最优的路由，不更新其他路由
+dis bgp routing-table peer 11.1.1.1 advertised-routes //向R1这个邻居通告的路由有哪些？
+
+ BGP Local router ID is 10.1.34.4 
+ Status codes: * - valid, > - best, d - damped,
+               h - history,  i - internal, s - suppressed, S - Stale
+               Origin : i - IGP, e - EGP, ? - incomplete
+
+
+ Total Number of Routes: 1
+      Network            NextHop        MED        LocPrf    PrefVal Path/Ogn
+
+ *>   4.4.4.4/32         44.1.1.1        0          100        0      i
+2）从eBGP邻居得到的路由（eBGP路由）没有条件的更新给iBGP邻居和eBGP邻居（不会通告回收到路由的eBGP邻居，水平分割）
+对歪果仁没有抵抗力
+3）iBGP的水平分割（iBGP的防环原则）
+从IBGP邻居收到的路由，不在更新给其他的IBGP邻居（铁公鸡）
+隐患！
+eBGP的防环：AS号码来防环，如果AS-path包含了和自身相同的AS，则拒绝接收该路由！（防环原则还有其他扩展）
+4）BGP同步规则（华为不支持同步，纯理论化的过时的工具！）
+未完待续
+==========================================
+BGP的下一跳
+IGP（包括静态路由）的下一跳通常是相邻设备或者不相邻的一个转发地址
+1）BGP的下一跳，指到达其他AS的一个转发地址或者设备
+一条路由没有>，首先就查看下一跳是否路由可达
+[R1-bgp]peer 44.1.1.1 next-hop-local //eBGP（R5更新路由给R1）会保持下一跳，更新给iBGP依旧会保持。告知国内的公民，先到本国海关去通关。ASBR针对iBGP邻居实施！
+<R4>refresh bgp all import 
+<R4>dis bgp rou           
+
+ BGP Local router ID is 10.1.34.4 
+ Status codes: * - valid, > - best, d - damped,
+               h - history,  i - internal, s - suppressed, S - Stale
+               Origin : i - IGP, e - EGP, ? - incomplete
+
+
+ Total Number of Routes: 2
+      Network            NextHop        MED        LocPrf    PrefVal Path/Ogn
+
+ *>   4.4.4.4/32         0.0.0.0         0                     0      i
+ *>i  5.5.5.5/32         11.1.1.1        0          100        0      200i
+其他的可用但不推荐的方式：把直连引入IGP路由；写静态路由
+2）[R1-bgp]peer 44.1.1.1 next-hop-invariable //是优化数据转发的方案，保持下一跳不变，用于非直连的用多跳构建的EBGP邻居之间优化数据转发！
+Error: The peer next-hop-invariable command cannot be configured because the peer next-hop-local command is configured.
+3）RR反射器环境下的下一跳（暂时无法演示）
+R2同R1、R4构建iBGP邻居
+R1对R2做下一跳本地，R2对R4做下一跳本地（不行，因为R2不是ASBR，这不关键，更关键的是R2压根不把5.5.5.5的路由更新给R4）
+4）多点接入网络的下一跳！
